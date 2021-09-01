@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	fmt.Print("This is a web App.")
+	fmt.Print("test")
 }
