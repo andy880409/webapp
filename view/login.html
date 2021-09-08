@@ -5,7 +5,7 @@
         <title>Login Page</title>
     </head>
     <body>
-        <h1>{{.}}</h1>
+        <h1 style="color: aqua;">Login Page</h1>
         <form method="POST">
             <label>帳號:</label>
             <input type="email" placeholder="email" name="username"><br>
@@ -13,6 +13,9 @@
             <input type="password" placeholder="6個以上包含大小寫的字元" name="password"><br>
             <input type="submit" value="送出"><br>
         </form>
+        {{if .}}
+        <p style="color: red;">{{.}}</p>
+        {{end}}
         <label>沒有帳號嗎?</label>
         <a href="/sign-up">註冊</a>
     </body>
