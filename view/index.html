@@ -7,8 +7,11 @@
         </title>
     </head>
     <body>
-        <h1>
-            Welcome
-        </h1>
+        <h1>Welcome</h1><br>
+        {{if .}}
+        <p>{{.UserName}}</p>
+        <p>{{.Password}}</p>
+        {{end}}
+        <a href="/logout">登出</a>
     </body>
 </html>

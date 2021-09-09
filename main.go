@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type User struct {
@@ -42,6 +44,25 @@ func auth(username string, password string) error {
 	return errors.New("此用戶不存在")
 }
 
+//設sessionID在cookie中，並把session完成
+func setSession(w http.ResponseWriter, un string) {
+	sID, _ := uuid.NewV4()
+	c := &http.Cookie{
+		Name:  "sessionID",
+		Value: sID.String(),
+	}
+	http.SetCookie(w, c)
+	dbSession[c.Value] = un
+}
+func clearSession(w http.ResponseWriter) {
+	c := &http.Cookie{
+		Name:   "sessionID",
+		Value:  "",
+		MaxAge: -1,
+	}
+	http.SetCookie(w, c)
+}
+
 //index page
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var data string
@@ -51,7 +72,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("帳號:%s\n密碼:%s\n", un, p)
 		err := auth(un, p)
 		if err == nil {
-			http.Redirect(w, r, "/welcome", http.StatusSeeOther)
+			setSession(w, un)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 		data = err.Error()
@@ -60,28 +82,43 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //sign up page
-func signUpHandler(w http.ResponseWriter, r *http.Request) {
+func signupHandler(w http.ResponseWriter, r *http.Request) {
 	var data string
 	if r.Method == http.MethodPost {
 		un := r.FormValue("username")
 		p := r.FormValue("password")
 		if _, ok := dbUser[un]; !ok {
 			dbUser[un] = User{UserName: un, Password: p}
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 		data = fmt.Sprintf("帳號:%s 已經存在了!", un)
 	}
-	tpl.ExecuteTemplate(w, "sign-up.html", data)
+	tpl.ExecuteTemplate(w, "signup.html", data)
 }
 
-//welcome page
-func welcomeHandler(w http.ResponseWriter, r *http.Request) {
-	tpl.ExecuteTemplate(w, "welcome.html", nil)
+//log out
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	clearSession(w)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+//index page
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	//檢查cookie內是否有sessionID
+	c, err := r.Cookie("sessionID")
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	un := dbSession[c.Value]
+	u := dbUser[un]
+	tpl.ExecuteTemplate(w, "index.html", u)
 }
 func main() {
-	http.HandleFunc("/", loginHandler)
-	http.HandleFunc("/sign-up", signUpHandler)
-	http.HandleFunc("/welcome", welcomeHandler)
+	http.HandleFunc("/", indexHandler)
+	http.HandleFunc("/signup", signupHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/logout", logoutHandler)
 	http.ListenAndServe(":8080", nil)
 }
