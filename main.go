@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"html/template"
@@ -14,6 +15,7 @@ type User struct {
 	Password string
 }
 
+var db *sql.DB
 var tpl *template.Template
 var dbUser = map[string]User{}      //key:username | value:User Data
 var dbSession = map[string]string{} //key:session id | value:username
@@ -23,9 +25,15 @@ func init() {
 }
 
 //檢查用戶是否存在
-func checkUserIsExist(u string) bool {
-	_, isExist := dbUser[u]
-	return isExist
+func checkUserIsExist(un string) bool {
+	user, isExist := dbUser[un]
+	if !isExist {
+		return false
+	}
+	if _, err := selectUser(db, user); err != sql.ErrNoRows {
+		return true
+	}
+	return false
 }
 
 //檢查密碼是否一致
@@ -39,7 +47,9 @@ func checkPassword(p1 string, p2 string) error {
 //驗證身分
 func auth(username string, password string) error {
 	if checkUserIsExist(username) {
-		return checkPassword(password, dbUser[username].Password)
+		user := dbUser[username]
+		userInTable, _ := selectUser(db, user)
+		return checkPassword(password, userInTable.Password)
 	}
 	return errors.New("此用戶不存在")
 }
@@ -87,8 +97,10 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		un := r.FormValue("username")
 		p := r.FormValue("password")
-		if _, ok := dbUser[un]; !ok {
-			dbUser[un] = User{UserName: un, Password: p}
+		if !checkUserIsExist(un) {
+			user := User{UserName: un, Password: p}
+			dbUser[un] = user
+			addUser(db, user.UserName, user.Password)
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -116,6 +128,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteTemplate(w, "index.html", u)
 }
 func main() {
+	db = connectDB()
+	createTable(db)
+	defer db.Close()
+
+	fmt.Println("Successfully Connected to MySQL Database.")
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/signup", signupHandler)
 	http.HandleFunc("/login", loginHandler)
