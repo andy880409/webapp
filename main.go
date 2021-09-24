@@ -25,15 +25,11 @@ func init() {
 }
 
 //檢查用戶是否存在
-func checkUserIsExist(un string) bool {
-	user, isExist := dbUser[un]
-	if !isExist {
-		return false
+func checkUserIsExist(un string) (bool, *User) {
+	if userSelected, err := selectUser(db, un); err != sql.ErrNoRows {
+		return true, userSelected
 	}
-	if _, err := selectUser(db, user); err != sql.ErrNoRows {
-		return true
-	}
-	return false
+	return false, nil
 }
 
 //檢查密碼是否一致
@@ -46,10 +42,9 @@ func checkPassword(p1 string, p2 string) error {
 
 //驗證身分
 func auth(username string, password string) error {
-	if checkUserIsExist(username) {
-		user := dbUser[username]
-		userInTable, _ := selectUser(db, user)
-		return checkPassword(password, userInTable.Password)
+	if isExist, user := checkUserIsExist(username); isExist {
+		dbUser[user.UserName] = *user
+		return checkPassword(password, user.Password)
 	}
 	return errors.New("此用戶不存在")
 }
@@ -97,7 +92,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		un := r.FormValue("username")
 		p := r.FormValue("password")
-		if !checkUserIsExist(un) {
+		if isExist, _ := checkUserIsExist(un); !isExist {
 			user := User{UserName: un, Password: p}
 			dbUser[un] = user
 			addUser(db, user.UserName, user.Password)

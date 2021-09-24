@@ -62,10 +62,11 @@ func addUser(db *sql.DB, un string, pa string) {
 	}
 	fmt.Println("Affected Row:", rowsAffected)
 }
-func selectUser(db *sql.DB, u User) (*User, error) {
-	user := &User{}
-	row := db.QueryRow("SELECT username,password FROM user WHERE username=?", u.UserName)
+func selectUser(db *sql.DB, un string) (*User, error) {
+	user := new(User)
+	row := db.QueryRow("SELECT username,password FROM user WHERE username=?", un)
 	err := row.Scan(&user.UserName, &user.Password)
+	fmt.Println(user.UserName, user.Password)
 	if err != nil {
 		return user, err
 	}
